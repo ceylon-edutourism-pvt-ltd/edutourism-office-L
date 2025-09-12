@@ -26,6 +26,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
+    - assets/Picture1.jpg
+    - assets/Picture4.png
     - assets/fonts/Roboto-Regular.ttf
     - assets/fonts/Roboto-Bold.ttf
     - assets/fonts/Roboto-Italic.ttf

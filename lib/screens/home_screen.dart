@@ -24,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Letter Generator - PDF Direct'),
+        title: const Text('Letter Generator Edutourism'),
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
@@ -62,10 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 5),
-                const Text(
-                  'Direct PDF Generation',
-                  style: TextStyle(fontSize: 12, color: Colors.green),
-                ),
               ],
             ),
           ),

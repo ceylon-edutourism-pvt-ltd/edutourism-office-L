@@ -18,9 +18,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Fixed: Remove libreOfficeCommand parameter
     _settings = AppSettings(
       logoPath: widget.settings.logoPath,
+      signaturePath: widget.settings.signaturePath,  // Added signature path
       outputDirectory: widget.settings.outputDirectory,
       bulkModeEnabled: widget.settings.bulkModeEnabled,
       logoPositionX: widget.settings.logoPositionX,
@@ -113,6 +113,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 16),
 
+            // Signature settings
+            const Text(
+              'Signature Settings',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+
+            ListTile(
+              leading: const Icon(Icons.draw),
+              title: const Text('Signature File'),
+              subtitle: Text(_settings.signaturePath.isEmpty 
+                  ? 'Using default signature' 
+                  : _settings.signaturePath.split('/').last),
+              trailing: IconButton(
+                icon: const Icon(Icons.folder_open),
+                onPressed: _selectSignatureFile,
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             // Output settings
             const Text(
               'Output Settings',
@@ -146,6 +167,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (result != null && result.files.single.path != null) {
       setState(() {
         _settings.logoPath = result.files.single.path!;
+      });
+    }
+  }
+
+  Future<void> _selectSignatureFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _settings.signaturePath = result.files.single.path!;
       });
     }
   }

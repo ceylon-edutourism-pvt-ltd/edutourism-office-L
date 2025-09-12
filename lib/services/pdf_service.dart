@@ -30,11 +30,25 @@ class PdfService {
         final logoBytes = await File(settings.logoPath).readAsBytes();
         logoImage = pw.MemoryImage(logoBytes);
       } else {
-        final logoBytes = (await rootBundle.load("assets/logo.png")).buffer.asUint8List();
+        final logoBytes = (await rootBundle.load("assets/Picture1.jpg")).buffer.asUint8List();
         logoImage = pw.MemoryImage(logoBytes);
       }
     } catch (e) {
       print('Logo loading failed: $e');
+    }
+
+    // Load signature
+    pw.ImageProvider? signatureImage;
+    try {
+      if (settings.signaturePath.isNotEmpty && File(settings.signaturePath).existsSync()) {
+        final signatureBytes = await File(settings.signaturePath).readAsBytes();
+        signatureImage = pw.MemoryImage(signatureBytes);
+      } else {
+        final signatureBytes = (await rootBundle.load("assets/Picture4.png")).buffer.asUint8List();
+        signatureImage = pw.MemoryImage(signatureBytes);
+      }
+    } catch (e) {
+      print('Sign loading failed: $e');
     }
 
     // Add page with exact formatting
@@ -44,7 +58,7 @@ class PdfService {
         margin: const pw.EdgeInsets.all(40),
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: buildLetterContent(data, letterType, logoImage, regularFont, boldFont),
+          children: buildLetterContent(data, letterType, logoImage, signatureImage, regularFont, boldFont),
         ),
       ),
     );
@@ -64,22 +78,22 @@ class PdfService {
     return filePath;
   }
 
-  List<pw.Widget> buildLetterContent(LetterData data, LetterType letterType, pw.ImageProvider? logoImage, pw.Font regularFont, pw.Font boldFont) {
+  List<pw.Widget> buildLetterContent(LetterData data, LetterType letterType, pw.ImageProvider? logoImage, pw.ImageProvider? signatureImage, pw.Font regularFont, pw.Font boldFont) {
     final templateData = data.toTemplateData();
     
     switch (letterType) {
       case LetterType.malaysiaStudyTourInvitation:
-        return buildMalaysiaStudyTourInvitation(templateData, logoImage, regularFont, boldFont);
+        return buildMalaysiaStudyTourInvitation(templateData, logoImage, signatureImage, regularFont, boldFont);
         
       case LetterType.passportRequestLetter:
-        return buildPassportRequestLetter(templateData, logoImage, regularFont, boldFont);
+        return buildPassportRequestLetter(templateData, logoImage, signatureImage, regularFont, boldFont);
         
       default:
-        return buildDefaultLetter(templateData, letterType, logoImage, regularFont, boldFont);
+        return buildDefaultLetter(templateData, letterType, logoImage, signatureImage, regularFont, boldFont);
     }
   }
 
-  List<pw.Widget> buildMalaysiaStudyTourInvitation(Map<String, String> data, pw.ImageProvider? logoImage, pw.Font regularFont, pw.Font boldFont) {
+  List<pw.Widget> buildMalaysiaStudyTourInvitation(Map<String, String> data, pw.ImageProvider? logoImage, pw.ImageProvider? signatureImage, pw.Font regularFont, pw.Font boldFont) {
     return [
       // Header with logo and organization info
       pw.Row(
@@ -156,7 +170,7 @@ class PdfService {
       
       pw.SizedBox(height: 25),
       
-      // Variable data section in box (like the template image shows)
+      // Variable data section in box
       pw.Container(
         width: double.infinity,
         padding: const pw.EdgeInsets.all(8),
@@ -175,7 +189,7 @@ class PdfService {
       
       pw.SizedBox(height: 20),
       
-      // Date - right aligned as in original
+      // Date - right aligned
       pw.Align(
         alignment: pw.Alignment.centerRight,
         child: pw.Text(
@@ -337,7 +351,19 @@ class PdfService {
         ),
       ),
       
-      pw.SizedBox(height: 25),
+      pw.SizedBox(height: 10),
+      
+      // Signature image
+      if (signatureImage != null)
+        pw.Container(
+          width: 120,
+          height: 40,
+          child: pw.Image(signatureImage, fit: pw.BoxFit.contain),
+        )
+      else
+        pw.SizedBox(height: 25),
+      
+      pw.SizedBox(height: 10),
       
       // Signature section
       pw.Text(
@@ -371,35 +397,128 @@ class PdfService {
       
       pw.Spacer(),
       
-      // Footer with logos/text
+      // Updated Footer with proper black and white icons
       pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
         children: [
-          pw.Container(
-            child: pw.Text(
-              'WWW.MIYC.COM.MY',
-              style: pw.TextStyle(
-                font: regularFont,
-                fontSize: 8,
-              ),
+          // Left: Website with globe icon
+          pw.Expanded(
+            flex: 1,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.start,
+              children: [
+                // Globe icon (black and white)
+                pw.Container(
+                  width: 12,
+                  height: 12,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 1),
+                    shape: pw.BoxShape.circle,
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      '🌐',
+                      style: pw.TextStyle(
+                        fontSize: 6,
+                        color: PdfColors.black,
+                      ),
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 4),
+                pw.Text(
+                  'WWW.MIYC.COM.MY',
+                  style: pw.TextStyle(
+                    font: regularFont,
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
+                  ),
+                ),
+              ],
             ),
           ),
-          pw.Container(
+          
+          // Center: Organization name
+          pw.Expanded(
+            flex: 2,
             child: pw.Text(
-              'MALAYSIAN YOUTH COUNCIL',
+              'MALAYSIAN INDIAN YOUTH COUNCIL',
               style: pw.TextStyle(
                 font: regularFont,
                 fontSize: 8,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.black,
               ),
+              textAlign: pw.TextAlign.center,
             ),
           ),
-          pw.Container(
-            child: pw.Text(
-              'MALAYSIAN YOUTH COUNCIL',
-              style: pw.TextStyle(
-                font: regularFont,
-                fontSize: 8,
-              ),
+          
+          // Right: Social media with icons
+          pw.Expanded(
+            flex: 1,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: [
+                // Facebook icon (black and white)
+                pw.Container(
+                  width: 12,
+                  height: 12,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 1),
+                    borderRadius: pw.BorderRadius.circular(2),
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      'f',
+                      style: pw.TextStyle(
+                        font: boldFont,
+                        fontSize: 7,
+                        color: PdfColors.black,
+                      ),
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 3),
+                pw.Text(
+                  'FACEBOOK',
+                  style: pw.TextStyle(
+                    font: regularFont,
+                    fontSize: 6,
+                    color: PdfColors.black,
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+                
+                // Instagram icon (black and white)
+                pw.Container(
+                  width: 12,
+                  height: 12,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 1),
+                    borderRadius: pw.BorderRadius.circular(3),
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      '📷',
+                      style: pw.TextStyle(
+                        fontSize: 6,
+                        color: PdfColors.black,
+                      ),
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 3),
+                pw.Text(
+                  'INSTAGRAM',
+                  style: pw.TextStyle(
+                    font: regularFont,
+                    fontSize: 6,
+                    color: PdfColors.black,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -407,13 +526,13 @@ class PdfService {
     ];
   }
 
-  List<pw.Widget> buildPassportRequestLetter(Map<String, String> data, pw.ImageProvider? logoImage, pw.Font regularFont, pw.Font boldFont) {
+  List<pw.Widget> buildPassportRequestLetter(Map<String, String> data, pw.ImageProvider? logoImage, pw.ImageProvider? signatureImage, pw.Font regularFont, pw.Font boldFont) {
     return [
-      // Header with logo and organization info - same as invitation
+      // Header with logo and organization info
       pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.center,
         children: [
-          // Logo section - positioned to the left
+          // Logo section
           if (logoImage != null)
             pw.Container(
               width: 60,
@@ -426,7 +545,7 @@ class PdfService {
               height: 60,
               decoration: pw.BoxDecoration(
                 color: PdfColors.orange300,
-                borderRadius: pw.BorderRadius.circular(8), // Square with rounded corners
+                borderRadius: pw.BorderRadius.circular(8),
               ),
               child: pw.Center(
                 child: pw.Text('MIYC', style: pw.TextStyle(font: boldFont, fontSize: 12, color: PdfColors.white)),
@@ -435,25 +554,25 @@ class PdfService {
           
           pw.SizedBox(width: 15),
           
-          // Organization header - positioned to the right of logo
+          // Organization header
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
                 pw.Text(
                   'Malaysian Indian Youth Council (MIYC)',
-                  style: pw.TextStyle(font: boldFont, fontSize: 14, color: PdfColor.fromHex('#DC143C')), // Deep red color
+                  style: pw.TextStyle(font: boldFont, fontSize: 14, color: PdfColor.fromHex('#DC143C')),
                   textAlign: pw.TextAlign.center,
                 ),
                 pw.Text(
                   'Majlis Belia India Malaysia',
-                  style: pw.TextStyle(font: regularFont, fontSize: 12, color: PdfColor.fromHex('#DC143C')), // Deep red color
+                  style: pw.TextStyle(font: regularFont, fontSize: 12, color: PdfColor.fromHex('#DC143C')),
                   textAlign: pw.TextAlign.center,
                 ),
                 pw.SizedBox(height: 4),
                 pw.Text(
                   'No. 87, 2, Jln SBC 1, Taman Sri Batu Caves, 68100, Selangor,\nMalaysia',
-                  style: pw.TextStyle(font: regularFont, fontSize: 10, color: PdfColor.fromHex('#DC143C')), // Deep red color
+                  style: pw.TextStyle(font: regularFont, fontSize: 10, color: PdfColor.fromHex('#DC143C')),
                   textAlign: pw.TextAlign.center,
                 ),
               ],
@@ -468,7 +587,7 @@ class PdfService {
       pw.Container(
         width: double.infinity,
         height: 3,
-        color: PdfColor.fromHex('#FFD700'), // Gold/Yellow color
+        color: PdfColor.fromHex('#FFD700'),
       ),
       
       pw.SizedBox(height: 15),
@@ -548,7 +667,6 @@ class PdfService {
         textAlign: pw.TextAlign.justify,
         ),
 
-      
       pw.SizedBox(height: 12),
       
       pw.Text(
@@ -600,6 +718,7 @@ class PdfService {
       ),
       
       pw.SizedBox(height: 25),
+      
       // Closing
       pw.Text(
         'With high regards,',
@@ -609,7 +728,19 @@ class PdfService {
         ),
       ),
       
-      pw.SizedBox(height: 25),
+      pw.SizedBox(height: 10),
+      
+      // Signature image
+      if (signatureImage != null)
+        pw.Container(
+          width: 120,
+          height: 40,
+          child: pw.Image(signatureImage, fit: pw.BoxFit.contain),
+        )
+      else
+        pw.SizedBox(height: 25),
+      
+      pw.SizedBox(height: 10),
       
       // Signature section
       pw.Text(
@@ -641,120 +772,127 @@ class PdfService {
         ),
       ),
       
-      // Footer line - same as header
+      // Footer line
       pw.Container(
         width: double.infinity,
         height: 3,
-        color: PdfColor.fromHex('#FFD700'), // Gold/Yellow color
+        color: PdfColor.fromHex('#FFD700'),
       ),
       
       pw.SizedBox(height: 10),
       
-      // Footer with social media icons and text
+      // Updated Footer with proper black and white icons
       pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
         children: [
-          // Website
-          pw.Expanded(
-            flex: 1,
-            child: pw.Text(
-              'WWW.MIYC.COM.MY',
-              style: pw.TextStyle(
-                font: regularFont,
-                fontSize: 8,
-                fontWeight: pw.FontWeight.bold,
-              ),
-              textAlign: pw.TextAlign.left,
-            ),
-          ),
-          
-          // Center text
-          pw.Expanded(
-            flex: 2,
-            child: pw.Text(
-              'MALAYSIAN YOUTH COUNCIL',
-              style: pw.TextStyle(
-                font: regularFont,
-                fontSize: 8,
-                fontWeight: pw.FontWeight.bold,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
-          ),
-          
-          // Social media section
+          // Left: Website with globe icon
           pw.Expanded(
             flex: 1,
             child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.end,
+              mainAxisAlignment: pw.MainAxisAlignment.start,
               children: [
+                // Globe icon (black and white)
+                pw.Container(
+                  width: 12,
+                  height: 12,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 1),
+                    shape: pw.BoxShape.circle,
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      '🌐',
+                      style: pw.TextStyle(
+                        fontSize: 6,
+                        color: PdfColors.black,
+                      ),
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 4),
                 pw.Text(
-                  'MALAYSIAN YOUTH',
+                  'WWW.MIYC.COM.MY',
                   style: pw.TextStyle(
                     font: regularFont,
                     fontSize: 8,
                     fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
                   ),
                 ),
-                pw.SizedBox(width: 5),
-                // Website icon (globe)
+              ],
+            ),
+          ),
+          pw.Expanded(
+            flex: 1,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.start,
+              children: [
+                // Globe icon (black and white)
                 pw.Container(
                   width: 12,
                   height: 12,
                   decoration: pw.BoxDecoration(
-                    color: PdfColors.blue,
+                    border: pw.Border.all(color: PdfColors.black, width: 1),
                     shape: pw.BoxShape.circle,
                   ),
                   child: pw.Center(
                     child: pw.Text(
-                      'W',
+                      '🌐',
                       style: pw.TextStyle(
-                        font: boldFont,
                         fontSize: 6,
-                        color: PdfColors.white,
+                        color: PdfColors.black,
                       ),
                     ),
                   ),
                 ),
-                pw.SizedBox(width: 3),
-                // Facebook icon
+                pw.SizedBox(width: 4),
+                pw.Text(
+                  'WWW.MIYC.COM.MY',
+                  style: pw.TextStyle(
+                    font: regularFont,
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          pw.Expanded(
+            flex: 1,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.start,
+              children: [
+                // Globe icon (black and white)
                 pw.Container(
                   width: 12,
                   height: 12,
                   decoration: pw.BoxDecoration(
-                    color: PdfColor.fromHex('#1877F2'),
+                    border: pw.Border.all(color: PdfColors.black, width: 1),
                     shape: pw.BoxShape.circle,
                   ),
                   child: pw.Center(
                     child: pw.Text(
-                      'f',
+                      '🌐',
                       style: pw.TextStyle(
-                        font: boldFont,
-                        fontSize: 8,
-                        color: PdfColors.white,
+                        fontSize: 6,
+                        color: PdfColors.black,
                       ),
                     ),
                   ),
                 ),
-                pw.SizedBox(width: 3),
-                // Instagram icon
-                pw.Container(
-                  width: 12,
-                  height: 12,
-                  decoration: pw.BoxDecoration(
-                    color: PdfColor.fromHex('#E4405F'),
-                    shape: pw.BoxShape.circle,
+                pw.SizedBox(width: 4),
+                pw.Text(
+                  'WWW.MIYC.COM.MY',
+                  style: pw.TextStyle(
+                    font: regularFont,
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
                   ),
-                  child: pw.Center(
-                    child: pw.Text(
-                      'IG',
-                      style: pw.TextStyle(
-                        font: boldFont,
-                        fontSize: 5,
-                        color: PdfColors.white,
-                      ),
-                    ),
-                  ),
+                  textAlign: pw.TextAlign.right,
                 ),
               ],
             ),
@@ -764,7 +902,7 @@ class PdfService {
     ];
   }
 
-  List<pw.Widget> buildDefaultLetter(Map<String, String> data, LetterType letterType, pw.ImageProvider? logoImage, pw.Font regularFont, pw.Font boldFont) {
+  List<pw.Widget> buildDefaultLetter(Map<String, String> data, LetterType letterType, pw.ImageProvider? logoImage, pw.ImageProvider? signatureImage, pw.Font regularFont, pw.Font boldFont) {
     return [
       pw.Center(
         child: pw.Text(
@@ -780,7 +918,24 @@ class PdfService {
       pw.Text('Name with Initials: ${data['name_with_initials']}', style: pw.TextStyle(font: regularFont)),
       pw.Text('${data['identification_type']}: ${data['identification_number']}', style: pw.TextStyle(font: regularFont)),
       pw.SizedBox(height: 30),
-      pw.Text('Best regards,', style: pw.TextStyle(font: regularFont)),
+      
+      // Closing
+      pw.Text('With high regards,', style: pw.TextStyle(font: regularFont)),
+      
+      pw.SizedBox(height: 10),
+      
+      // Signature image
+      if (signatureImage != null)
+        pw.Container(
+          width: 240,
+          height: 80,
+          child: pw.Image(signatureImage, fit: pw.BoxFit.contain),
+        )
+      else
+        pw.SizedBox(height: 25),
+      
+      pw.SizedBox(height: 10),
+      
       pw.Text('OFFICE L', style: pw.TextStyle(font: boldFont)),
     ];
   }

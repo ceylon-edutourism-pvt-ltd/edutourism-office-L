@@ -1,5 +1,6 @@
 class AppSettings {
   String logoPath;
+  String signaturePath;  // Added signature path
   String outputDirectory;
   bool bulkModeEnabled;
   double logoPositionX;
@@ -9,6 +10,7 @@ class AppSettings {
 
   AppSettings({
     this.logoPath = '',
+    this.signaturePath = '',  // Added signature path
     this.outputDirectory = '',
     this.bulkModeEnabled = false,
     this.logoPositionX = 50,
