@@ -28,8 +28,9 @@ class _BulkModeWidgetState extends State<BulkModeWidget> {
   final _idController = TextEditingController();
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
+Widget build(BuildContext context) {
+  return SingleChildScrollView(
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Header
@@ -138,8 +139,9 @@ class _BulkModeWidgetState extends State<BulkModeWidget> {
         ),
         const SizedBox(height: 8),
 
-        Expanded(
-          flex: 2,
+        // FIXED: Use SizedBox with height instead of Expanded
+        SizedBox(
+          height: 200, // Fixed height for people list
           child: widget.bulkLetters.isEmpty
               ? Card(
                   child: Center(
@@ -147,16 +149,16 @@ class _BulkModeWidgetState extends State<BulkModeWidget> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.people_outline, 
-                             size: 64, color: Colors.grey.shade400),
-                        const SizedBox(height: 16),
+                             size: 48, color: Colors.grey.shade400), // Reduced size
+                        const SizedBox(height: 8), // Reduced spacing
                         Text(
                           'No people added yet',
                           style: TextStyle(
-                            fontSize: 16, 
+                            fontSize: 14, 
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         Text(
                           'Add names above to generate bulk letters',
                           style: TextStyle(
@@ -219,19 +221,21 @@ class _BulkModeWidgetState extends State<BulkModeWidget> {
         ),
         const SizedBox(height: 8),
 
-        Container(
-          height: 200,
+        // FIXED: Reduced height and made it more compact
+        SizedBox(
+          height: 150, // Reduced from 200
           child: Card(
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: ListView(
                 children: LetterType.values.map((letterType) {
                   return CheckboxListTile(
+                    dense: true, // Make it more compact
                     title: Text(_getLetterTypeName(letterType)),
                     subtitle: letterType == LetterType.malaysiaStudyTourInvitation || 
                               letterType == LetterType.passportRequestLetter
-                        ? const Text('Uses asset template', style: TextStyle(color: Colors.green, fontSize: 12))
-                        : const Text('Uses default template', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                        ? const Text('Uses asset template', style: TextStyle(color: Colors.green, fontSize: 11))
+                        : const Text('Uses default template', style: TextStyle(color: Colors.orange, fontSize: 11)),
                     value: widget.letterData.selectedLetterTypes.contains(letterType),
                     onChanged: (checked) {
                       if (checked == true) {
@@ -269,9 +273,13 @@ class _BulkModeWidgetState extends State<BulkModeWidget> {
             backgroundColor: widget.bulkLetters.isEmpty ? Colors.grey : null,
           ),
         ),
+
+        const SizedBox(height: 16), // Add bottom padding
       ],
-    );
-  }
+    ),
+  );
+}
+
 
   void _addBulkEntry() {
     if (_nameController.text.isNotEmpty && _idController.text.isNotEmpty) {

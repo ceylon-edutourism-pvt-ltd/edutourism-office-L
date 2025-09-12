@@ -18,6 +18,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    // Fixed: Remove libreOfficeCommand parameter
     _settings = AppSettings(
       logoPath: widget.settings.logoPath,
       outputDirectory: widget.settings.outputDirectory,
@@ -26,7 +27,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       logoPositionY: widget.settings.logoPositionY,
       logoWidth: widget.settings.logoWidth,
       logoHeight: widget.settings.logoHeight,
-      libreOfficeCommand: widget.settings.libreOfficeCommand,
     );
   }
 
@@ -49,7 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            // Template info card
+            // App info
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -58,24 +58,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.description, color: Colors.blue),
+                        Icon(Icons.picture_as_pdf, color: Colors.red),
                         SizedBox(width: 8),
                         Text(
-                          'Template Information',
+                          'PDF Generation',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text('Default Templates:'),
-                    const Text('• Malaysia Study Tour Invitation.docx', 
-                        style: TextStyle(fontSize: 12, color: Colors.green)),
-                    const Text('• Passport Request Letter.docx', 
-                        style: TextStyle(fontSize: 12, color: Colors.green)),
-                    const SizedBox(height: 8),
                     const Text(
-                      'Place your DOCX templates in the assets folder with these exact names.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      'Letters are generated directly as PDF files using Flutter\'s built-in PDF package. No external software required!',
+                      style: TextStyle(fontSize: 12, color: Colors.green),
                     ),
                   ],
                 ),
@@ -83,19 +77,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             
             const SizedBox(height: 16),
-            const Divider(),
-            
-            // App Settings
-            const Text(
-              'Application Settings',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
 
             // Bulk mode toggle
             SwitchListTile(
               title: const Text('Bulk Mode'),
-              subtitle: const Text('Enable bulk letter generation with multiple names'),
+              subtitle: const Text('Generate multiple letters at once'),
               value: _settings.bulkModeEnabled,
               onChanged: (value) {
                 setState(() {
@@ -105,9 +91,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             const SizedBox(height: 16),
-            const Divider(),
 
-            // Logo Settings
+            // Logo settings
             const Text(
               'Logo Settings',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -115,57 +100,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
 
             ListTile(
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: _settings.logoPath.isNotEmpty && File(_settings.logoPath).existsSync()
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: Image.file(
-                          File(_settings.logoPath),
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Image.asset(
-                        'assets/logo.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.business, color: Colors.blue);
-                        },
-                      ),
-              ),
+              leading: const Icon(Icons.image),
               title: const Text('Logo File'),
               subtitle: Text(_settings.logoPath.isEmpty 
-                  ? 'Using default: assets/logo.png' 
+                  ? 'Using default logo' 
                   : _settings.logoPath.split('/').last),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_settings.logoPath.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() {
-                          _settings.logoPath = '';
-                        });
-                      },
-                    ),
-                  IconButton(
-                    icon: const Icon(Icons.folder_open),
-                    onPressed: _selectLogoFile,
-                  ),
-                ],
+              trailing: IconButton(
+                icon: const Icon(Icons.folder_open),
+                onPressed: _selectLogoFile,
               ),
             ),
 
             const SizedBox(height: 16),
-            const Divider(),
 
-            // Output Settings
+            // Output settings
             const Text(
               'Output Settings',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -181,48 +129,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               trailing: IconButton(
                 icon: const Icon(Icons.folder_open),
                 onPressed: _selectOutputDirectory,
-              ),
-            ),
-
-            const SizedBox(height: 16),
-            
-            // LibreOffice Settings
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.picture_as_pdf, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text(
-                          'PDF Conversion Settings',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'All letters are automatically converted to PDF. LibreOffice is required for conversion.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      decoration: const InputDecoration(
-                        labelText: 'LibreOffice Command',
-                        helperText: 'Command to run LibreOffice (e.g., "soffice" or full path)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.terminal),
-                      ),
-                      initialValue: _settings.libreOfficeCommand,
-                      onChanged: (value) {
-                        _settings.libreOfficeCommand = value;
-                      },
-                    ),
-                  ],
-                ),
               ),
             ),
           ],

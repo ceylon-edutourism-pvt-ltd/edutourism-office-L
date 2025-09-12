@@ -6,7 +6,6 @@ class AppSettings {
   double logoPositionY;
   double logoWidth;
   double logoHeight;
-  String libreOfficeCommand;
 
   AppSettings({
     this.logoPath = '',
@@ -16,6 +15,5 @@ class AppSettings {
     this.logoPositionY = 50,
     this.logoWidth = 150,
     this.logoHeight = 150,
-    this.libreOfficeCommand = 'soffice',
   });
 }

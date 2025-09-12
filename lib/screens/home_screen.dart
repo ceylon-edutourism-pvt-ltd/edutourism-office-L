@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import '../models/letter_data.dart';
 import '../models/settings.dart';
-import '../services/docx_service.dart';
+import '../services/pdf_service.dart';  // Changed from docx_service
 import '../widgets/letter_form.dart';
 import '../widgets/bulk_mode_widget.dart';
 import 'settings_screen.dart';
@@ -19,31 +19,16 @@ class _HomeScreenState extends State<HomeScreen> {
   LetterData letterData = LetterData();
   List<BulkLetterData> bulkLetters = [];
   bool isGenerating = false;
-  List<String> availableTags = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAvailableTags();
-  }
-
-  Future<void> _loadAvailableTags() async {
-    final service = DocxService(settings);
-    final tags = await service.extractPlaceholdersFromTemplate(LetterType.malaysiaStudyTourInvitation);
-    setState(() {
-      availableTags = tags;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Letter Generator - Final Version'),
+        title: const Text('Letter Generator - PDF Direct'),
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
-            onPressed: _showTemplateInfo,
+            onPressed: _showInfo,
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -65,14 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     border: Border.all(color: Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(8),
                     color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        spreadRadius: 1,
-                        blurRadius: 3,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
@@ -86,8 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 5),
                 const Text(
-                  'Malaysia Study Tour • Passport Request',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  'Direct PDF Generation',
+                  style: TextStyle(fontSize: 12, color: Colors.green),
                 ),
               ],
             ),
@@ -145,22 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildLogo() {
-    if (settings.logoPath.isNotEmpty && File(settings.logoPath).existsSync()) {
-      return Image.file(
-        File(settings.logoPath),
-        width: 100,
-        height: 100,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildDefaultLogo();
-        },
-      );
-    }
-    
-    return _buildDefaultLogo();
-  }
-
-  Widget _buildDefaultLogo() {
     return Image.asset(
       'assets/logo.png',
       width: 100,
@@ -176,41 +137,34 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showTemplateInfo() {
+  void _showInfo() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Template Information'),
-        content: Column(
+        title: const Text('Letter Generator Info'),
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Available Templates:',
+            Text(
+              'Available Letters:',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
-            const Text('• Malaysia Study Tour Invitation'),
-            const Text('• Passport Request Letter'),
-            const SizedBox(height: 15),
-            const Text(
-              'Name Format:',
+            SizedBox(height: 10),
+            Text('• Malaysia Study Tour Invitation'),
+            Text('• Passport Request Letter'),
+            Text('• Employment Confirmation'),
+            Text('• And more...'),
+            SizedBox(height: 15),
+            Text(
+              'Features:',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 5),
-            const Text(
-              'Full name "ethugala arachchi tharusha gimsara"\nwill become "E.A.T.GIMSARA"',
-              style: TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 15),
-            const Text(
-              'Available Placeholders:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 5),
-            ...DocxService(settings).getStandardPlaceholders().map(
-              (tag) => Text('• {$tag}', style: const TextStyle(fontSize: 12)),
-            ),
+            SizedBox(height: 5),
+            Text('✓ Direct PDF generation'),
+            Text('✓ Auto initials conversion'),
+            Text('✓ No external software needed'),
+            Text('✓ Professional formatting'),
           ],
         ),
         actions: [
@@ -234,7 +188,6 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         settings = newSettings;
       });
-      await _loadAvailableTags();
     }
   }
 
@@ -258,25 +211,16 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final service = DocxService(settings);
+      final service = PdfService(settings); // Fixed: using PdfService
       int successCount = 0;
-      int errorCount = 0;
       
       for (final letterType in letterData.selectedLetterTypes) {
         try {
-          final docxBytes = await service.generateDocxFromTemplate(letterData, letterType);
-          if (docxBytes != null) {
-            final fileName = service.generateFileName(letterData, letterType);
-            final pdfPath = await service.saveAndConvertToPdf(fileName, docxBytes);
-            
-            await service.openFile(pdfPath);
-            successCount++;
-          } else {
-            errorCount++;
-          }
+          final pdfPath = await service.generateLetterPdf(letterData, letterType);
+          await service.openFile(pdfPath);
+          successCount++;
         } catch (e) {
           print('Error generating ${letterType.name}: $e');
-          errorCount++;
         }
       }
 
@@ -285,18 +229,9 @@ class _HomeScreenState extends State<HomeScreen> {
           SnackBar(content: Text('Generated $successCount PDF letter(s) successfully!')),
         );
       }
-      
-      if (errorCount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$errorCount letter(s) failed to generate'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating letters: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
     } finally {
       setState(() {
@@ -313,19 +248,12 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    if (letterData.selectedLetterTypes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one letter type')),
-      );
-      return;
-    }
-
     setState(() {
       isGenerating = true;
     });
 
     try {
-      final service = DocxService(settings);
+      final service = PdfService(settings); // Fixed: using PdfService
       int totalCount = 0;
       
       for (final letterType in letterData.selectedLetterTypes) {
@@ -344,21 +272,17 @@ class _HomeScreenState extends State<HomeScreen> {
             contractDetails: letterData.contractDetails,
           );
           
-          final docxBytes = await service.generateDocxFromTemplate(individualData, letterType);
-          if (docxBytes != null) {
-            final fileName = '${service.generateFileName(individualData, letterType)}_${i + 1}';
-            await service.saveAndConvertToPdf(fileName, docxBytes);
-            totalCount++;
-          }
+          await service.generateLetterPdf(individualData, letterType);
+          totalCount++;
         }
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Generated $totalCount PDF letter(s) successfully!')),
+        SnackBar(content: Text('Generated $totalCount PDF letter(s)!')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating bulk letters: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
     } finally {
       setState(() {

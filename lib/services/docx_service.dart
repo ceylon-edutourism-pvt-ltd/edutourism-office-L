@@ -2,105 +2,277 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:archive/archive.dart';
-import 'package:libre_doc_converter/libre_doc_converter.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import '../models/letter_data.dart';
 import '../models/settings.dart';
 
-class DocxService {
+class PdfService {
   final AppSettings settings;
   
-  DocxService(this.settings);
+  PdfService(this.settings);
 
-  Future<Uint8List?> generateDocxFromTemplate(
-    LetterData data, 
-    LetterType letterType
-  ) async {
-    try {
-      // Load template from assets based on letter type
-      final templateBytes = await _loadTemplateFromAssets(letterType);
-      if (templateBytes == null) {
-        return await _generateFromDefaultTemplate(data, letterType);
-      }
-      
-      return await _processTemplate(templateBytes, data);
-    } catch (e) {
-      print('Error generating DOCX: $e');
-      return await _generateFromDefaultTemplate(data, letterType);
-    }
-  }
-
-  Future<Uint8List?> _loadTemplateFromAssets(LetterType letterType) async {
-    try {
-      String assetPath;
-      
-      switch (letterType) {
-        case LetterType.malaysiaStudyTourInvitation:
-          assetPath = 'assets/Malaysia Study Tour Invitation.docx';
-          break;
-        case LetterType.passportRequestLetter:
-          assetPath = 'assets/Passport Request Letter.docx';
-          break;
-        default:
-          // For other letter types, use a default template or generate one
-          return null;
-      }
-      
-      final byteData = await rootBundle.load(assetPath);
-      return byteData.buffer.asUint8List();
-    } catch (e) {
-      print('Error loading template from assets: $e');
-      return null;
-    }
-  }
-
-  Future<Uint8List?> _generateFromDefaultTemplate(LetterData data, LetterType letterType) async {
-    try {
-      final content = _generateDefaultContent(data, letterType);
-      final archive = Archive();
-      
-      archive.addFile(ArchiveFile('[Content_Types].xml', _contentTypes.length, 
-          Uint8List.fromList(_contentTypes.codeUnits)));
-      archive.addFile(ArchiveFile('_rels/.rels', _rels.length, 
-          Uint8List.fromList(_rels.codeUnits)));
-      archive.addFile(ArchiveFile('word/_rels/document.xml.rels', _docRels.length, 
-          Uint8List.fromList(_docRels.codeUnits)));
-      archive.addFile(ArchiveFile('word/document.xml', content.length, 
-          Uint8List.fromList(content.codeUnits)));
-      
-      return Uint8List.fromList(ZipEncoder().encode(archive)!);
-    } catch (e) {
-      print('Error generating default template: $e');
-      return null;
-    }
-  }
-
-  String _generateDefaultContent(LetterData data, LetterType letterType) {
-    final templateData = data.toTemplateData();
-    String title = _getLetterTitle(letterType);
-    String body = _getLetterBody(letterType, templateData);
+  Future<String> generateLetterPdf(LetterData data, LetterType letterType) async {
+    final pdf = pw.Document();
     
-    return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>
-    <w:p>
-      <w:pPr><w:jc w:val="center"/></w:pPr>
-      <w:r><w:rPr><w:b/></w:rPr><w:t>$title</w:t></w:r>
-    </w:p>
-    <w:p><w:r><w:t></w:t></w:r></w:p>
-    <w:p><w:r><w:t>Date: ${templateData['current_date']}</w:t></w:r></w:p>
-    <w:p><w:r><w:t></w:t></w:r></w:p>
-    $body
-    <w:p><w:r><w:t></w:t></w:r></w:p>
-    <w:p><w:r><w:t>Best regards,</w:t></w:r></w:p>
-    <w:p><w:r><w:t>OFFICE L</w:t></w:r></w:p>
-    <w:p><w:r><w:t></w:t></w:r></w:p>
-    <w:p>
-      <w:pPr><w:jc w:val="center"/></w:pPr>
-      <w:r><w:rPr><w:i/></w:rPr><w:t>Powered by Lindo Solutions</w:t></w:r>
-    </w:p>
-  </w:body>
-</w:document>''';
+    // Load logo
+    pw.ImageProvider? logoImage;
+    try {
+      if (settings.logoPath.isNotEmpty && File(settings.logoPath).existsSync()) {
+        final logoBytes = await File(settings.logoPath).readAsBytes();
+        logoImage = pw.MemoryImage(logoBytes);
+      } else {
+        final logoBytes = (await rootBundle.load("assets/logo.png")).buffer.asUint8List();
+        logoImage = pw.MemoryImage(logoBytes);
+      }
+    } catch (e) {
+      print('Error loading logo: $e');
+    }
+
+    // Add page with content
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(30),
+        build: (context) => [
+          if (logoImage != null)
+            pw.Center(
+              child: pw.Image(logoImage, width: 100, height: 100),
+            ),
+          pw.SizedBox(height: 20),
+          
+          pw.Center(
+            child: pw.Text(
+              'OFFICE L',
+              style: pw.TextStyle(
+                fontSize: 18,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 30),
+          
+          // Letter content based on type
+          ...buildLetterContent(data, letterType),
+          
+          pw.Spacer(),
+          pw.Center(
+            child: pw.Text(
+              'Powered by Lindo Solutions',
+              style: pw.TextStyle(
+                fontSize: 10,
+                fontStyle: pw.FontStyle.italic,
+                color: PdfColors.grey,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Save PDF
+    final fileName = generateFileName(data, letterType);
+    final directory = settings.outputDirectory.isNotEmpty 
+        ? Directory(settings.outputDirectory)
+        : await getApplicationDocumentsDirectory();
+    
+    final filePath = "${directory.path}/$fileName.pdf";
+    final file = File(filePath);
+    
+    final pdfBytes = await pdf.save();
+    await file.writeAsBytes(pdfBytes);
+    
+    return filePath;
+  }
+
+  List<pw.Widget> buildLetterContent(LetterData data, LetterType letterType) {
+    final templateData = data.toTemplateData();
+    
+    switch (letterType) {
+      case LetterType.malaysiaStudyTourInvitation:
+        return [
+          pw.Center(
+            child: pw.Text(
+              'MALAYSIA STUDY TOUR INVITATION',
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 30),
+          pw.Text('Date: ${templateData['current_date']}'),
+          pw.SizedBox(height: 20),
+          pw.Text('Dear ${templateData['name']},'),
+          pw.SizedBox(height: 15),
+          pw.Text(
+            'We are pleased to invite you to participate in our Malaysia Study Tour program.',
+            textAlign: pw.TextAlign.justify,
+          ),
+          pw.SizedBox(height: 15),
+          pw.Text('Name with Initials: ${templateData['name_with_initials']}'),
+          pw.Text('${templateData['identification_type']}: ${templateData['identification_number']}'),
+          pw.SizedBox(height: 20),
+          pw.Text(
+            'This invitation is valid for the upcoming study tour to Malaysia. Please ensure all travel documents are prepared accordingly.',
+            textAlign: pw.TextAlign.justify,
+          ),
+          pw.SizedBox(height: 30),
+          pw.Text('Best regards,'),
+          pw.SizedBox(height: 15),
+          pw.Text(
+            'OFFICE L',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+          ),
+          pw.Text('Study Tour Coordination Team'),
+        ];
+        
+      case LetterType.passportRequestLetter:
+        return [
+          pw.Center(
+            child: pw.Text(
+              'PASSPORT REQUEST LETTER',
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 30),
+          pw.Text('Date: ${templateData['current_date']}'),
+          pw.SizedBox(height: 20),
+          pw.Text('To Whom It May Concern,'),
+          pw.SizedBox(height: 15),
+          pw.Text(
+            'This letter is to request passport services for the following individual:',
+            textAlign: pw.TextAlign.justify,
+          ),
+          pw.SizedBox(height: 15),
+          pw.Text('Full Name: ${templateData['name']}'),
+          pw.Text('Name with Initials: ${templateData['name_with_initials']}'),
+          pw.Text('${templateData['identification_type']}: ${templateData['identification_number']}'),
+          pw.SizedBox(height: 20),
+          pw.Text(
+            'This request is made for official travel purposes related to educational programs.',
+            textAlign: pw.TextAlign.justify,
+          ),
+          pw.SizedBox(height: 30),
+          pw.Text('Thank you for your assistance.'),
+          pw.SizedBox(height: 15),
+          pw.Text('Sincerely,'),
+          pw.SizedBox(height: 15),
+          pw.Text(
+            'OFFICE L',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+          ),
+          pw.Text('Administrative Department'),
+        ];
+
+      case LetterType.invitationLetter:
+        return [
+          pw.Center(
+            child: pw.Text(
+              'INVITATION LETTER',
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 30),
+          pw.Text('Date: ${templateData['current_date']}'),
+          pw.SizedBox(height: 20),
+          pw.Text('Dear ${templateData['name']},'),
+          pw.SizedBox(height: 15),
+          pw.Text(
+            'We are pleased to invite you to our upcoming event.',
+            textAlign: pw.TextAlign.justify,
+          ),
+          pw.SizedBox(height: 15),
+          pw.Text('Name with Initials: ${templateData['name_with_initials']}'),
+          pw.Text('${templateData['identification_type']}: ${templateData['identification_number']}'),
+          pw.SizedBox(height: 20),
+          pw.Text('We look forward to your presence.'),
+          pw.SizedBox(height: 30),
+          pw.Text('Best regards,'),
+          pw.SizedBox(height: 15),
+          pw.Text('OFFICE L Team'),
+        ];
+
+      case LetterType.employmentConfirmationLetter:
+        return [
+          pw.Center(
+            child: pw.Text(
+              'EMPLOYMENT CONFIRMATION LETTER',
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 30),
+          pw.Text('Date: ${templateData['current_date']}'),
+          pw.SizedBox(height: 20),
+          pw.Text('To Whom It May Concern,'),
+          pw.SizedBox(height: 15),
+          pw.Text(
+            'This letter confirms that ${templateData['name_with_initials']} (${templateData['identification_type']}: ${templateData['identification_number']}) is employed with our organization.',
+            textAlign: pw.TextAlign.justify,
+          ),
+          pw.SizedBox(height: 15),
+          if (templateData['occupation']?.isNotEmpty == true)
+            pw.Text('Position: ${templateData['occupation']}'),
+          if (templateData['contract_details']?.isNotEmpty == true)
+            pw.Text('Contract Details: ${templateData['contract_details']}'),
+          pw.SizedBox(height: 20),
+          pw.Text('This letter is issued for official purposes.'),
+          pw.SizedBox(height: 30),
+          pw.Text('Sincerely,'),
+          pw.SizedBox(height: 15),
+          pw.Text('HR Department'),
+          pw.Text('OFFICE L'),
+        ];
+
+      // Add other letter types similarly...
+      default:
+        return [
+          pw.Center(
+            child: pw.Text(
+              _getLetterTitle(letterType),
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 30),
+          pw.Text('Date: ${templateData['current_date']}'),
+          pw.SizedBox(height: 20),
+          pw.Text('Dear ${templateData['name']},'),
+          pw.SizedBox(height: 15),
+          pw.Text('Name with Initials: ${templateData['name_with_initials']}'),
+          pw.Text('${templateData['identification_type']}: ${templateData['identification_number']}'),
+          pw.SizedBox(height: 20),
+          pw.Text('This letter is generated for official purposes.'),
+          pw.SizedBox(height: 30),
+          pw.Text('Best regards,'),
+          pw.SizedBox(height: 15),
+          pw.Text('OFFICE L'),
+        ];
+    }
+  }
+
+  String generateFileName(LetterData data, LetterType letterType) {
+    final nameWithInitials = data.nameWithInitials;
+    
+    switch (letterType) {
+      case LetterType.malaysiaStudyTourInvitation:
+        return 'Malaysia Study Tour Invitation $nameWithInitials';
+      case LetterType.passportRequestLetter:
+        return 'Passport Request Letter $nameWithInitials';
+      default:
+        return '${_getLetterTitle(letterType)} $nameWithInitials';
+    }
   }
 
   String _getLetterTitle(LetterType letterType) {
@@ -126,139 +298,6 @@ class DocxService {
     }
   }
 
-  String _getLetterBody(LetterType letterType, Map<String, String> data) {
-    switch (letterType) {
-      case LetterType.malaysiaStudyTourInvitation:
-        return '''<w:p><w:r><w:t>Dear ${data['name']},</w:t></w:r></w:p>
-<w:p><w:r><w:t></w:t></w:r></w:p>
-<w:p><w:r><w:t>We are pleased to invite you to participate in our Malaysia Study Tour program.</w:t></w:r></w:p>
-<w:p><w:r><w:t>Name with Initials: ${data['name_with_initials']}</w:t></w:r></w:p>
-<w:p><w:r><w:t>${data['identification_type']}: ${data['identification_number']}</w:t></w:r></w:p>
-<w:p><w:r><w:t></w:t></w:r></w:p>
-<w:p><w:r><w:t>This invitation is valid for the upcoming study tour to Malaysia.</w:t></w:r></w:p>''';
-      
-      case LetterType.passportRequestLetter:
-        return '''<w:p><w:r><w:t>To Whom It May Concern,</w:t></w:r></w:p>
-<w:p><w:r><w:t></w:t></w:r></w:p>
-<w:p><w:r><w:t>This letter is to request passport services for ${data['name']}.</w:t></w:r></w:p>
-<w:p><w:r><w:t>Name with Initials: ${data['name_with_initials']}</w:t></w:r></w:p>
-<w:p><w:r><w:t>${data['identification_type']}: ${data['identification_number']}</w:t></w:r></w:p>''';
-      
-      default:
-        return '''<w:p><w:r><w:t>Dear ${data['name']},</w:t></w:r></w:p>
-<w:p><w:r><w:t></w:t></w:r></w:p>
-<w:p><w:r><w:t>This letter is generated for ${data['name_with_initials']} (${data['identification_type']}: ${data['identification_number']}).</w:t></w:r></w:p>''';
-    }
-  }
-
-  Future<Uint8List> _processTemplate(Uint8List templateBytes, LetterData data) async {
-    try {
-      final archive = ZipDecoder().decodeBytes(templateBytes);
-      final newArchive = Archive();
-      final replacements = data.toTemplateData();
-
-      for (final file in archive) {
-        if (file.name == 'word/document.xml') {
-          String content = String.fromCharCodes(file.content);
-          
-          replacements.forEach((key, value) {
-            content = content.replaceAll('{$key}', value);
-          });
-          
-          newArchive.addFile(ArchiveFile(
-            file.name,
-            content.length,
-            Uint8List.fromList(content.codeUnits),
-          ));
-        } else {
-          newArchive.addFile(ArchiveFile(
-            file.name,
-            file.size,
-            file.content,
-          ));
-        }
-      }
-
-      return Uint8List.fromList(ZipEncoder().encode(newArchive)!);
-    } catch (e) {
-      print('Error processing template: $e');
-      return templateBytes;
-    }
-  }
-
-  // Generate filename based on letter type and name with initials
-  String generateFileName(LetterData data, LetterType letterType) {
-    final nameWithInitials = data.nameWithInitials;
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    
-    switch (letterType) {
-      case LetterType.malaysiaStudyTourInvitation:
-        return 'Malaysia Study Tour Invitation $nameWithInitials';
-      case LetterType.passportRequestLetter:
-        return 'Passport Request Letter $nameWithInitials';
-      default:
-        return '${_getLetterTitle(letterType)} $nameWithInitials $timestamp';
-    }
-  }
-
-  // Save DOCX and convert to PDF
-  Future<String> saveAndConvertToPdf(String fileName, Uint8List docxBytes) async {
-    final directory = settings.outputDirectory.isNotEmpty 
-        ? Directory(settings.outputDirectory)
-        : await getApplicationDocumentsDirectory();
-    
-    // Save DOCX temporarily
-    final docxPath = "${directory.path}/$fileName.docx";
-    final docxFile = File(docxPath);
-    await docxFile.writeAsBytes(docxBytes);
-    
-    try {
-      // Convert to PDF using LibreOffice converter
-      final converter = LibreDocConverter(inputFile: docxFile);
-      final pdfFile = await converter.toPdf();
-      
-      // Delete temporary DOCX file
-      await docxFile.delete();
-      
-      return pdfFile.path;
-    } catch (e) {
-      print('Error converting to PDF: $e');
-      // Fallback: try LibreOffice command line
-      return await _convertUsingLibreOfficeCommand(docxPath, fileName, directory);
-    }
-  }
-
-  Future<String> _convertUsingLibreOfficeCommand(String docxPath, String fileName, Directory directory) async {
-    try {
-      final pdfPath = "${directory.path}/$fileName.pdf";
-      
-      final result = await Process.run(
-        settings.libreOfficeCommand,
-        [
-          '--headless',
-          '--convert-to',
-          'pdf',
-          '--outdir',
-          directory.path,
-          docxPath,
-        ],
-        runInShell: true,
-      );
-      
-      if (result.exitCode == 0 && File(pdfPath).existsSync()) {
-        await File(docxPath).delete(); // Delete DOCX
-        return pdfPath;
-      } else {
-        print('LibreOffice conversion failed: ${result.stderr}');
-        return docxPath; // Return DOCX if conversion fails
-      }
-    } catch (e) {
-      print('Error with LibreOffice command: $e');
-      return docxPath;
-    }
-  }
-
-  // Open file
   Future<void> openFile(String filePath) async {
     if (Platform.isWindows) {
       await Process.start('cmd', ['/c', 'start', '""', filePath], runInShell: true);
@@ -268,64 +307,4 @@ class DocxService {
       await Process.start('open', [filePath], runInShell: true);
     }
   }
-
-  // Extract placeholders from assets template
-  Future<List<String>> extractPlaceholdersFromTemplate(LetterType letterType) async {
-    try {
-      final templateBytes = await _loadTemplateFromAssets(letterType);
-      if (templateBytes == null) return [];
-      
-      final archive = ZipDecoder().decodeBytes(templateBytes);
-      
-      for (final file in archive) {
-        if (file.name == 'word/document.xml') {
-          final xmlContent = String.fromCharCodes(file.content);
-          final regex = RegExp(r'\{([^}]+)\}');
-          final matches = regex.allMatches(xmlContent);
-          
-          return matches.map((match) => match.group(1)!).toSet().toList();
-        }
-      }
-      
-      return [];
-    } catch (e) {
-      print('Error extracting placeholders: $e');
-      return [];
-    }
-  }
-
-  List<String> getStandardPlaceholders() {
-    return [
-      'name',
-      'name_with_initials',
-      'identification_type',
-      'identification_number',
-      'sponsor_name',
-      'dependent_name',
-      'occupation',
-      'project_details',
-      'contract_details',
-      'current_date',
-      'current_year',
-      'current_month',
-      'current_day',
-    ];
-  }
-
-  // DOCX structure constants
-  static const String _contentTypes = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-</Types>''';
-
-  static const String _rels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>''';
-
-  static const String _docRels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-</Relationships>''';
 }

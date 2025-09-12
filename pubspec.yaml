@@ -1,5 +1,5 @@
 name: letter_generator_desktop
-description: A desktop letter generation application with DOCX templates
+description: A desktop letter generation application
 
 publish_to: 'none'
 version: 1.0.0+1
@@ -15,8 +15,7 @@ dependencies:
   file_picker: ^5.5.0
   shared_preferences: ^2.2.2
   desktop_window: ^0.4.0
-  archive: ^3.4.9
-  libre_doc_converter: ^0.1.1  # For DOCX to PDF conversion
+  pdf: ^3.10.4
 
 dev_dependencies:
   flutter_test:
@@ -26,7 +25,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/
     - assets/logo.png
-    - assets/Malaysia Study Tour Invitation.docx
-    - assets/Passport Request Letter.docx
+    - assets/fonts/Roboto-Regular.ttf
+    - assets/fonts/Roboto-Bold.ttf
+    - assets/fonts/Roboto-Italic.ttf
