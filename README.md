@@ -1,16 +1,28 @@
-# edutourismofficel
+# Office Document Generator
+A **Flutter desktop application** for internal office use that automates creation of reports, forms, and other administrative documents from reusable templates.
 
-A new Flutter project.
+✨ Features
+- **Template management** – upload, edit, or version reusable document templates  
+- **Multi-format export** – PDF, DOCX, and HTML generation with a single click  
 
-## Getting Started
+🚀 Tech Stack
+| Layer               | Technology |
+| ------------------- | ---------- |
+| UI & State          | Flutter 3 |
+| Document rendering  | `pdf`, `docx_template` (Dart packages) |
+| Local storage       | SQLite (via `sqflite`) |
+| Packaging           | `flutter_distributor` |
 
-This project is a starting point for a Flutter application.
+🖥️ Supported Platforms
+Desktop (Windows 7+).  
+Mobile and web builds are not currently supported.
 
-A few resources to get you started if this is your first Flutter project:
+Prerequisites
+- Flutter >= 3.16.0
+- Dart >= 3.2.0
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+📄 License
+Distributed under the Apache License. See `LICENSE` for more information.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+👥 Team & Maintainers
+- **Mr.Tharusha Gimsara** - Full-stack Lead  
