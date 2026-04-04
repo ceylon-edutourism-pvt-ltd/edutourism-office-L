@@ -57,6 +57,36 @@ class LetterForm extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
+          // Gender selector
+          Row(
+            children: [
+              const Text('Gender: '),
+              const SizedBox(width: 10),
+              ChoiceChip(
+                label: const Text('Female'),
+                selected: letterData.gender == Gender.female,
+                onSelected: (selected) {
+                  if (selected) {
+                    letterData.gender = Gender.female;
+                    onDataChanged(letterData);
+                  }
+                },
+              ),
+              const SizedBox(width: 10),
+              ChoiceChip(
+                label: const Text('Male'),
+                selected: letterData.gender == Gender.male,
+                onSelected: (selected) {
+                  if (selected) {
+                    letterData.gender = Gender.male;
+                    onDataChanged(letterData);
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
           // Identification type
           Row(
             children: [
@@ -98,6 +128,32 @@ class LetterForm extends StatelessWidget {
               onDataChanged(letterData);
             },
           ),
+
+          // NIC warning for passport request letter
+          if (letterData.selectedLetterTypes.contains(LetterType.passportRequestLetter) &&
+              letterData.identificationType == IdentificationType.passport) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                border: Border.all(color: Colors.orange),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Passport Request Letter requires a NIC number. Please switch to NIC above.',
+                      style: TextStyle(color: Colors.orange, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
 
           // Letter types
@@ -124,6 +180,60 @@ class LetterForm extends StatelessWidget {
               },
             );
           }).toList(),
+
+          // Dynamic fields for leave letter
+          if (letterData.requiresLeaveFields) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Leave Letter - Recipient Details:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Recipient Name (e.g., Ms. Amani Madarasinghe)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                letterData.recipientName = value;
+                onDataChanged(letterData);
+              },
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Recipient Title (e.g., Human Resources Manager)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                letterData.recipientTitle = value;
+                onDataChanged(letterData);
+              },
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Organization Name',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                letterData.recipientOrganization = value;
+                onDataChanged(letterData);
+              },
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Organization Address',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              onChanged: (value) {
+                letterData.recipientAddress = value;
+                onDataChanged(letterData);
+              },
+            ),
+          ],
 
           // Dynamic fields for sponsor
           if (letterData.requiresSponsorFields) ...[

@@ -28,6 +28,11 @@ flutter:
     - assets/logo.png
     - assets/Picture1.jpg
     - assets/Picture4.png
+    - assets/miyc_logo.jpg
+    - assets/signature.png
+    - assets/icon_facebook.png
+    - assets/icon_instagram.png
+    - assets/icon_globe.png
     - assets/fonts/Roboto-Regular.ttf
     - assets/fonts/Roboto-Bold.ttf
     - assets/fonts/Roboto-Italic.ttf

@@ -26,6 +26,33 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Letter Generator Edutourism'),
         actions: [
+          // Bulk mode toggle
+          Row(
+            children: [
+              Icon(
+                Icons.group,
+                size: 18,
+                color: settings.bulkModeEnabled ? Colors.green : Colors.grey,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Bulk',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: settings.bulkModeEnabled ? Colors.green : Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Switch(
+                value: settings.bulkModeEnabled,
+                onChanged: (val) {
+                  setState(() {
+                    settings.bulkModeEnabled = val;
+                  });
+                },
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: _showInfo,
@@ -258,8 +285,9 @@ class _HomeScreenState extends State<HomeScreen> {
           
           final individualData = LetterData(
             name: bulkItem.name,
-            identificationType: letterData.identificationType,
+            identificationType: bulkItem.identificationType,
             identificationNumber: bulkItem.identificationNumber,
+            gender: bulkItem.gender,
             selectedLetterTypes: {letterType},
             sponsorName: letterData.sponsorName,
             dependentName: letterData.dependentName,
